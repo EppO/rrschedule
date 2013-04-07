@@ -1,23 +1,6 @@
 require 'rubygems'
 require 'rake'
 
-begin
-  require 'jeweler'
-  Jeweler::Tasks.new do |gem|
-    gem.name = "rrschedule"
-    gem.summary = %Q{Round-Robin schedule generator}
-    gem.description = %Q{This gem automate the process of creating a round-robin sport schedule.}
-    gem.email = "flamontagne@azanka.ca"
-    gem.homepage = "http://flamontagne.github.com/rrschedule"
-    gem.authors = ["flamontagne"]
-    #gem.add_dependency 'activesupport'
-    gem.add_development_dependency "thoughtbot-shoulda", ">= 0"
-  end
-  Jeweler::GemcutterTasks.new
-rescue LoadError
-  puts "Jeweler (or a dependency) not available. Install it with: gem install jeweler"
-end
-
 require 'rake/testtask'
 Rake::TestTask.new(:test) do |test|
   test.libs << 'lib' << 'test'
@@ -38,11 +21,11 @@ rescue LoadError
   end
 end
 
-task :test => :check_dependencies
+#task :test => :check_dependencies
 
 task :default => :test
 
-require 'rake/rdoctask'
+require 'rdoc/task'
 Rake::RDocTask.new do |rdoc|
   version = File.exist?('VERSION') ? File.read('VERSION') : ""
 
