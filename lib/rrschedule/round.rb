@@ -1,6 +1,6 @@
 module RRSchedule
   class Round
-    attr_accessor :round, :games,:flight
+    attr_accessor :round, :games, :flight
 
     def initialize(params={})
       self.round = params[:round]
@@ -13,13 +13,20 @@ module RRSchedule
       str += "=====================\n"
 
       self.games.each do |g|
-        if [g.team_a,g.team_b].include?(:dummy)
-          str+= g.team_a == :dummy ? g.team_b.to_s : g.team_a.to_s + " has a BYE\n"
+        if [g.team_a, g.team_b].include?(:dummy)
+          str += bye(g)
         else
-          str += g.team_a.to_s + " Vs " + g.team_b.to_s + "\n"
+          str += team_a_name + " Vs " + team_b_name + "\n"
         end
       end
       str += "\n"
+    end
+
+    private
+
+    def bye game
+      bye_team = game.team_a == :dummy ? game.team_a.to_s : game.team_b.to_s
+      "#{bye_team} has a BYE\n"
     end
   end
 end
