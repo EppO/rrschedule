@@ -4,15 +4,23 @@
 module RRSchedule
   class Schedule
     attr_reader :flights, :rounds, :gamedays
-    attr_accessor :teams, :rules, :cycles, :start_date, :exclude_dates,:shuffle, :group_flights, :balanced_gt, :balanced_ps
+    attr_accessor :teams,
+                  :rules,
+                  :cycles,
+                  :start_date,
+                  :exclude_dates,
+                  :shuffle,
+                  :group_flights,
+                  :balanced_game_time,
+                  :balanced_playing_surface
 
     def initialize(params={})
       @gamedays = []
       self.teams = params[:teams] || []
       self.cycles = params[:cycles] || 1
       self.shuffle = params[:shuffle].nil? ? true : params[:shuffle]
-      self.balanced_gt = params[:balanced_gt].nil? ? true : params[:balanced_gt]
-      self.balanced_ps = params[:balanced_ps].nil? ? true : params[:balanced_ps]      
+      self.balanced_game_time = params[:balanced_game_time].nil? ? true : params[:balanced_game_time]
+      self.balanced_playing_surface = params[:balanced_playing_surface].nil? ? true : params[:balanced_playing_surface]
       self.exclude_dates = params[:exclude_dates] || []
       self.start_date = params[:start_date] || Date.today
       self.group_flights = params[:group_flights].nil? ? true : params[:group_flights]
@@ -94,7 +102,7 @@ module RRSchedule
       end
       total
     end
-    
+
     #human readable schedule
     def to_s
       res = ""
@@ -153,37 +161,37 @@ module RRSchedule
             r = rounds_copy[flight_index].shift
             flat_games << r.games if r
           end
-        end          
+        end
       else
         flight_index = round_index = 0
-        game_ctr = 0 
+        game_ctr = 0
         while game_ctr < total_nbr_games
           if rounds_copy[flight_index][round_index] != nil
             game = rounds_copy[flight_index][round_index].games.shift
             if game
-              flat_games << game 
+              flat_games << game
               game_ctr += 1
             end
           end
 
           #check if round is empty
           round_empty=true
-          @flights.size.times do |i| 
+          @flights.size.times do |i|
             round_empty = round_empty && (rounds_copy[i][round_index].nil? || rounds_copy[i][round_index].games.empty?)
           end
-          
+
           if flight_index == @flights.size-1
             flight_index = 0
             round_index+=1 if round_empty
           else
             flight_index += 1
-          end          
+          end
         end
       end
-      
+
       flat_games.flatten!
-      flat_games.each do |game|
-        dispatch_game(game) unless [game.team_a,game.team_b].include?(:dummy)
+      flat_games.each do |g|
+        dispatch_game(g) unless [g.team_a, g.team_b].include?(:dummy)
       end
 
       #We group our schedule by gameday
@@ -268,8 +276,8 @@ module RRSchedule
     def get_best_gt(game)
       x = {}
       gt_left = @gt_ps_avail.reject{|k,v| v.empty?}
-      
-      if self.balanced_gt
+
+      if self.balanced_game_time
         gt_left.each_key do |gt|
           x[gt] = [
             @stats[game.team_a][:gt][gt] + @stats[game.team_b][:gt][gt],
@@ -284,8 +292,8 @@ module RRSchedule
 
     def get_best_ps(game,gt)
       x = {}
-      
-      if self.balanced_ps
+
+      if self.balanced_playing_surface
         @gt_ps_avail[gt].each do |ps|
           x[ps] = [
             @stats[game.team_a][:ps][ps] + @stats[game.team_b][:ps][ps],
@@ -366,9 +374,9 @@ module RRSchedule
     #Array of game times where games are played. Must be valid DateTime objects in the string form
     def gt=(gt)
       @gt =  Array(gt).empty? ? ["7:00 PM"] : Array(gt)
-      @gt.collect! do |gt|
+      @gt.collect! do |gtime|
         begin
-          DateTime.parse(gt)
+          DateTime.parse(gtime)
         rescue
           raise "game times must be valid time representations in the string form (e.g. 3:00 PM, 11:00 AM, 18:20, etc)"
         end

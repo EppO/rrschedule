@@ -2,6 +2,8 @@ require 'rubygems'
 require 'active_support/all'
 require './lib/rrschedule.rb'
 include RRSchedule
+
+=begin
 schedule1 = RRSchedule::Schedule.new(
               :teams => %w(T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13 T14 T15 T16 T17 T18 T19 T20 T21 T22 T23 T24 T25 T26),
               :rules => [
@@ -33,6 +35,7 @@ schedule2 = RRSchedule::Schedule.new(
             ).generate
 
 puts schedule2.to_s
+=end
 
 schedule3 = RRSchedule::Schedule.new(
               :teams => [
@@ -56,8 +59,8 @@ schedule3 = RRSchedule::Schedule.new(
                 )
 
               ],
-              :cycles => 1,
-              :start_date => Date.parse("2010/10/13"),
+              :cycles => 2,
+              :start_date => Date.parse("2013/5/12"),
               :balanced_gt => false,
               :balanced_ps => true
             ).generate

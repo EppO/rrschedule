@@ -1,5 +1,6 @@
-require 'helper'
+require 'test_helper'
 require 'active_support/all'
+
 class TestRrschedule < Test::Unit::TestCase
   include RRSchedule
   context "new instance without params" do
@@ -45,7 +46,6 @@ class TestRrschedule < Test::Unit::TestCase
       assert !@s.teams.include?(:dummy)
     end
   end
-
 
   context "extra available resources" do
     setup do
@@ -109,21 +109,21 @@ class TestRrschedule < Test::Unit::TestCase
     end
 
     should "have a correct total number of games" do
-      @s.generate    
+      @s.generate
       assert_equal 112, @s.gamedays.collect{|gd| gd.games.size}.inject{|x,sum| x+sum}
     end
 
     should "not have games for a date that is excluded" do
-      @s.generate    
+      @s.generate
       assert !@s.gamedays.collect{|gd| gd.date}.include?(Date.parse("2011/02/02"))
       assert @s.gamedays.collect{|gd| gd.date}.include?(Date.parse("2011/02/09"))
     end
-    
+
     should "respect rules" do
       @s.teams << %w(E1 E2 E3 E4 E5 E6 E7 E8)
       @s.rules << Rule.new(:wday => 4, :gt => "7:00PM", :ps => %w(one two))
       @s.generate
-      
+
       wday = 3
       @s.gamedays.each do |gd|
         assert_equal wday, gd.date.wday
