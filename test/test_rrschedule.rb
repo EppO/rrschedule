@@ -14,7 +14,7 @@ class TestRrschedule < Test::Unit::TestCase
   end
 
   context "no teams" do
-    setup {@s = Schedule.new(:rules => [Rule.new(:wday => 1, :gt => ["7:00PM"], :ps => %w(one two))])}
+    setup {@s = Schedule.new(:rules => [Rule.new(:wday => 1, :game_time => ["7:00PM"], :ps => %w(one two))])}
     should "raise an exception" do
       exception = assert_raise(RuntimeError){@s.generate}
       assert_equal "You need to specify at least 1 team", exception.message
@@ -54,7 +54,7 @@ class TestRrschedule < Test::Unit::TestCase
         :rules => [
           Rule.new(
             :wday => 3,
-            :gt => ["7:00PM", "9:00PM"],
+            :game_time => ["7:00PM", "9:00PM"],
             :ps => %w(one two three four)
           )
         ]
@@ -90,7 +90,7 @@ class TestRrschedule < Test::Unit::TestCase
         :rules => [
           Rule.new(
             :wday => 3,
-            :gt => ["7:00PM", "9:00PM"],
+            :game_time => ["7:00PM", "9:00PM"],
             :ps => ["one","two"]
           )
         ],
@@ -121,7 +121,7 @@ class TestRrschedule < Test::Unit::TestCase
 
     should "respect rules" do
       @s.teams << %w(E1 E2 E3 E4 E5 E6 E7 E8)
-      @s.rules << Rule.new(:wday => 4, :gt => "7:00PM", :ps => %w(one two))
+      @s.rules << Rule.new(:wday => 4, :game_time => "7:00PM", :ps => %w(one two))
       @s.generate
 
       wday = 3
@@ -133,15 +133,15 @@ class TestRrschedule < Test::Unit::TestCase
   end
 
   ##### RULES #######
-  should "auto create array for gt and ps" do
+  should "auto create array for game_time and ps" do
     @s = Schedule.new(
       :teams => %w(a1 a2 a4 a5),
       :rules => [
-        Rule.new(:wday => 1, :gt => "7:00PM", :ps => "The Field")
+        Rule.new(:wday => 1, :game_time => "7:00PM", :ps => "The Field")
       ]
     ).generate
 
-    assert_equal [DateTime.parse("7:00PM")], @s.rules.first.gt
+    assert_equal [DateTime.parse("7:00PM")], @s.rules.first.game_time
     assert_equal ["The Field"], @s.rules.first.ps
   end
 
@@ -158,8 +158,8 @@ class TestRrschedule < Test::Unit::TestCase
       @s = Schedule.new
       @s.teams = [%w(a1 a2 a3 a4 a5 a6 a7 a8), %w(b1 b2 b3 b4 b5 b6 b7 b8)]
       @s.rules = [
-        Rule.new(:wday => 4, :gt => ["7:00PM"], :ps => %w(field1 field2)),
-        Rule.new(:wday => 4, :gt => ["9:00PM"], :ps => %w(field1 field2 field3))
+        Rule.new(:wday => 4, :game_time => ["7:00PM"], :ps => %w(field1 field2)),
+        Rule.new(:wday => 4, :game_time => ["9:00PM"], :ps => %w(field1 field2 field3))
       ]
       @s.start_date = Date.parse("2011/01/27")
       @s.generate
@@ -187,8 +187,8 @@ class TestRrschedule < Test::Unit::TestCase
 
   def some_rules
     [
-      Rule.new(:wday => 1, :gt => "7:00PM", :ps => "one"),
-      Rule.new(:wday => 1, :gt => "8:00PM", :ps => %w(one two))
+      Rule.new(:wday => 1, :game_time => "7:00PM", :ps => "one"),
+      Rule.new(:wday => 1, :game_time => "8:00PM", :ps => %w(one two))
     ]
   end
 end

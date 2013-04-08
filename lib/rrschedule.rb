@@ -110,8 +110,8 @@ module RRSchedule
       self.gamedays.each do |gd|
         res << gd.date.strftime("%Y-%m-%d") + "\n"
         res << "==========\n"
-        gd.games.sort{|g1,g2| g1.gt == g2.gt ? g1.ps <=> g2.ps : g1.gt <=> g2.gt}.each do |g|
-          res << "#{g.ta.to_s} VS #{g.tb.to_s} on playing surface #{g.ps} at #{g.gt.strftime("%I:%M %p")}\n"
+        gd.games.sort{|g1,g2| g1.game_time == g2.game_time ? g1.ps <=> g2.ps : g1.game_time <=> g2.game_time}.each do |g|
+          res << "#{g.ta.to_s} VS #{g.tb.to_s} on playing surface #{g.ps} at #{g.game_time.strftime("%I:%M %p")}\n"
         end
         res << "\n"
       end
@@ -203,7 +203,7 @@ module RRSchedule
             :team_a => gm[:team_a],
             :team_b => gm[:team_b],
             :playing_surface => gm[:ps],
-            :game_time => gm [:gt]
+            :game_time => gm [:game_time]
           )
         end
         self.gamedays << Gameday.new(:date => gamedate, :games => games)
@@ -217,8 +217,8 @@ module RRSchedule
         reset_resource_availability
       end
 
-      @cur_gt = get_best_gt(game)
-      @cur_ps = get_best_ps(game,@cur_gt)
+      @cur_game_time = get_best_game_time(game)
+      @cur_ps = get_best_ps(game,@cur_game_time)
 
       @cur_date ||= next_game_date(self.start_date,@cur_rule.wday)
       @schedule ||= []
@@ -230,20 +230,20 @@ module RRSchedule
           @cur_rule_index = (@cur_rule_index < @rules.size-1) ? @cur_rule_index+1 : 0
           @cur_rule = @rules[@cur_rule_index]
           reset_resource_availability
-          @cur_gt = get_best_gt(game)
-          @cur_ps = get_best_ps(game,@cur_gt)
+          @cur_game_time = get_best_game_time(game)
+          @cur_ps = get_best_ps(game,@cur_game_time)
           @cur_date = next_game_date(@cur_date+=1,@cur_rule.wday)
         end
       end
 
       #We found our playing surface and game time, add the game in the schedule.
-      @schedule << {:team_a => game.team_a, :team_b => game.team_b, :gamedate => @cur_date, :ps => @cur_ps, :gt => @cur_gt}
-      update_team_stats(game,@cur_gt,@cur_ps)
-      update_resource_availability(@cur_gt,@cur_ps)
+      @schedule << {:team_a => game.team_a, :team_b => game.team_b, :gamedate => @cur_date, :ps => @cur_ps, :game_time => @cur_game_time}
+      update_team_stats(game,@cur_game_time,@cur_ps)
+      update_resource_availability(@cur_game_time,@cur_ps)
 
 
       #If no resources left, change rule
-      x = @gt_ps_avail.reject{|k,v| v.empty?}
+      x = @game_time_ps_avail.reject{|k,v| v.empty?}
       if x.empty?
         if @cur_rule_index < @rules.size-1
           last_rule=@cur_rule
@@ -266,35 +266,35 @@ module RRSchedule
       dt
     end
 
-    def update_team_stats(game,cur_gt,cur_ps)
-      @stats[game.team_a][:gt][cur_gt] += 1
+    def update_team_stats(game,cur_game_time,cur_ps)
+      @stats[game.team_a][:game_time][cur_game_time] += 1
       @stats[game.team_a][:ps][cur_ps] += 1
-      @stats[game.team_b][:gt][cur_gt] += 1
+      @stats[game.team_b][:game_time][cur_game_time] += 1
       @stats[game.team_b][:ps][cur_ps] += 1
     end
 
-    def get_best_gt(game)
+    def get_best_game_time(game)
       x = {}
-      gt_left = @gt_ps_avail.reject{|k,v| v.empty?}
+      game_time_left = @game_time_ps_avail.reject{|k,v| v.empty?}
 
       if self.balanced_game_time
-        gt_left.each_key do |gt|
-          x[gt] = [
-            @stats[game.team_a][:gt][gt] + @stats[game.team_b][:gt][gt],
+        game_time_left.each_key do |game_time|
+          x[game_time] = [
+            @stats[game.team_a][:game_time][game_time] + @stats[game.team_b][:game_time][game_time],
             rand(1000)
           ]
         end
         x.sort_by{|k,v| [v[0],v[1]]}.first[0]
       else
-        gt_left.sort.first[0]
+        game_time_left.sort.first[0]
       end
     end
 
-    def get_best_ps(game,gt)
+    def get_best_ps(game,game_time)
       x = {}
 
       if self.balanced_playing_surface
-        @gt_ps_avail[gt].each do |ps|
+        @game_time_ps_avail[game_time].each do |ps|
           x[ps] = [
             @stats[game.team_a][:ps][ps] + @stats[game.team_b][:ps][ps],
             rand(1000)
@@ -302,19 +302,19 @@ module RRSchedule
         end
         x.sort_by{|k,v| [v[0],v[1]]}.first[0]
       else
-        @gt_ps_avail[gt].first[0]
+        @game_time_ps_avail[game_time].first[0]
       end
     end
 
     def reset_resource_availability
-      @gt_ps_avail = {}
-      @cur_rule.gt.each do |gt|
-        @gt_ps_avail[gt] = @cur_rule.ps.clone
+      @game_time_ps_avail = {}
+      @cur_rule.game_time.each do |game_time|
+        @game_time_ps_avail[game_time] = @cur_rule.ps.clone
       end
     end
 
-    def update_resource_availability(cur_gt,cur_ps)
-      @gt_ps_avail[cur_gt].delete(cur_ps)
+    def update_resource_availability(cur_game_time,cur_ps)
+      @game_time_ps_avail[cur_game_time].delete(cur_ps)
     end
 
 
@@ -332,14 +332,14 @@ module RRSchedule
     def init_stats
       @stats = {}
       @teams.flatten.each do |t|
-        @stats[t] = {:gt => {}, :ps => {}}
-        all_gt.each { |gt| @stats[t][:gt][gt] = 0 }
+        @stats[t] = {:game_time => {}, :ps => {}}
+        all_game_time.each { |game_time| @stats[t][:game_time][game_time] = 0 }
         all_ps.each { |ps| @stats[t][:ps][ps] = 0 }
       end
     end
 
     #returns an array of all available game times / playing surfaces, all rules included.
-    def all_gt; @rules.collect{|r| r.gt}.flatten.uniq; end
+    def all_game_time; @rules.collect{|r| r.game_time}.flatten.uniq; end
     def all_ps; @rules.collect{|r| r.ps}.flatten.uniq; end
   end
 
@@ -353,11 +353,11 @@ module RRSchedule
   end
 
   class Rule
-    attr_accessor :wday, :gt, :ps
+    attr_accessor :wday, :game_time, :ps
 
     def initialize(params)
       self.wday = params[:wday]
-      self.gt = params[:gt]
+      self.game_time = params[:game_time]
       self.ps = params[:ps]
     end
 
@@ -372,11 +372,11 @@ module RRSchedule
     end
 
     #Array of game times where games are played. Must be valid DateTime objects in the string form
-    def gt=(gt)
-      @gt =  Array(gt).empty? ? ["7:00 PM"] : Array(gt)
-      @gt.collect! do |gtime|
+    def game_time=(game_time)
+      @game_time =  Array(game_time).empty? ? ["7:00 PM"] : Array(game_time)
+      @game_time.collect! do |game_timeime|
         begin
-          DateTime.parse(gtime)
+          DateTime.parse(game_timeime)
         rescue
           raise "game times must be valid time representations in the string form (e.g. 3:00 PM, 11:00 AM, 18:20, etc)"
         end
@@ -385,7 +385,7 @@ module RRSchedule
 
     def <=>(other)
       self.wday == other.wday ?
-      DateTime.parse(self.gt.first.to_s) <=> DateTime.parse(other.gt.first.to_s) :
+      DateTime.parse(self.game_time.first.to_s) <=> DateTime.parse(other.game_time.first.to_s) :
       self.wday <=> other.wday
     end
   end
@@ -395,7 +395,6 @@ module RRSchedule
     alias :ta :team_a
     alias :tb :team_b
     alias :ps :playing_surface
-    alias :gt :game_time
     alias :gd :game_date
 
     def initialize(params={})
