@@ -110,12 +110,20 @@ module RRSchedule
       self.gamedays.each do |gd|
         res << gd.date.strftime("%Y-%m-%d") + "\n"
         res << "==========\n"
-        gd.games.sort{|g1,g2| g1.game_time == g2.game_time ? g1.ps <=> g2.ps : g1.game_time <=> g2.game_time}.each do |g|
+        gd.games.sort {|g1, g2| compare_games g1, g2 }.each do |g|
           res << "#{g.ta.to_s} VS #{g.tb.to_s} on playing surface #{g.ps} at #{g.game_time.strftime("%I:%M %p")}\n"
         end
         res << "\n"
       end
       res
+    end
+
+    def compare_games g1, g2
+      if g1.game_time == g2.game_time
+        g1.ps <=> g2.ps
+      else
+        g1.game_time <=> g2.game_time
+      end
     end
 
     #returns true if the generated schedule is a valid round-robin (for testing purpose)
