@@ -111,7 +111,7 @@ module RRSchedule
         res << gd.date.strftime("%Y-%m-%d") + "\n"
         res << "==========\n"
         gd.games.sort {|g1, g2| compare_games g1, g2 }.each do |g|
-          res << "#{g.ta.to_s} VS #{g.tb.to_s} on playing surface #{g.ps} at #{g.game_time.strftime("%I:%M %p")}\n"
+          res << "#{g.ta.to_s} vs #{g.tb.to_s} on playing surface #{g.ps} at #{g.game_time.strftime("%I:%M %p")}\n"
         end
         res << "\n"
       end
