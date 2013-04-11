@@ -112,20 +112,23 @@ module RRSchedule
 
     #human readable schedule
     def to_s
-      res = ""
-      res << "#{@gamedays.size.to_s} gamedays\n"
+      res = "#{@gamedays.size.to_s} gamedays\n"
+
       @gamedays.each do |gd|
         res << gd.date.strftime("%Y-%m-%d") + "\n"
         res << "==========\n"
         gd.games.sort.each do |g|
-          res << "#{g.ta.to_s} vs #{g.tb.to_s} on playing surface #{g.playing_surface} at #{g.game_time.strftime("%I:%M %p")}\n"
+          res << game_line(g)
         end
         res << "\n"
       end
       res
     end
 
-    # returns true if the generated schedule is a valid round-robin (for testing purpose)
+    def game_line(game)
+      "#{game.ta.to_s} vs #{game.tb.to_s} on playing surface #{game.playing_surface} at #{game.game_time.strftime("%I:%M %p")}\n"
+    end
+
     def valid_round_robin?(flight_id=0)
       # each round-robin round should contains n-1 games where n is the number of
       # teams (:dummy included if odd)
@@ -133,7 +136,7 @@ module RRSchedule
       round_games = @cycles * (@flights[flight_id].size - 1)
       return false if @rounds[flight_id].size != round_games
 
-      #check if each team plays the same number of games against each other
+      # check if each team plays the same number of games against each other
       @flights[flight_id].each do |t1|
         @flights[flight_id].reject{|t| t == t1 }.each do |t2|
           return false unless face_to_face(t1,t2).size == @cycles || [t1,t2].include?(:dummy)
@@ -145,10 +148,10 @@ module RRSchedule
     private
 
     def arrange_flights
-      #a flight is a division where teams play round-robin against each other
+      # a flight is a division where teams play round-robin against each other
       @flights = Marshal.load(Marshal.dump(@teams)) #deep clone
 
-      #If teams aren't in flights, we create a single flight and put all teams in it
+      # If teams aren't in flights, we create a single flight and put all teams in it
       @flights = [@flights] unless @flights.first.respond_to?(:to_ary)
 
       @flights.each_with_index do |flight,i|
@@ -159,7 +162,7 @@ module RRSchedule
       end
     end
 
-    #Dispatch games according to available playing surfaces and game times
+    # Dispatch games according to available playing surfaces and game times
     def dispatch_games(rounds)
 
       rounds_copy =  Marshal.load(Marshal.dump(rounds)) #deep clone
@@ -204,8 +207,8 @@ module RRSchedule
         dispatch_game(g) unless [g.team_a, g.team_b].include?(:dummy)
       end
 
-      #We group our schedule by gameday
-      s=@schedule.group_by{|fs| fs[:gamedate]}.sort
+      # We group our schedule by gameday
+      s = @schedule.group_by{|fs| fs[:gamedate]}.sort
       s.each do |gamedate,gms|
         games = []
         gms.each do |gm|
@@ -222,7 +225,7 @@ module RRSchedule
 
     def dispatch_game(game)
       if @cur_rule.nil?
-        @cur_rule = @rules.select{|r| r.wday >= @start_date.wday}.first || @rules.first
+        @cur_rule = @rules.select {|r| r.wday >= @start_date.wday }.first || @rules.first
         @cur_rule_index = @rules.index(@cur_rule)
         reset_resource_availability
       end
@@ -246,13 +249,13 @@ module RRSchedule
         end
       end
 
-      #We found our playing surface and game time, add the game in the schedule.
+      # We found our playing surface and game time, add the game in the schedule.
       @schedule << {:team_a => game.team_a, :team_b => game.team_b, :gamedate => @cur_date, :playing_surface => @cur_ps, :game_time => @cur_game_time}
-      update_team_stats(game,@cur_game_time,@cur_ps)
-      update_resource_availability(@cur_game_time,@cur_ps)
+      update_team_stats(game,@cur_game_time, @cur_ps)
+      update_resource_availability(@cur_game_time, @cur_ps)
 
 
-      #If no resources left, change rule
+      # If no resources left, change rule
       x = @game_time_ps_avail.reject{|k,v| v.empty?}
       if x.empty?
         if @cur_rule_index < @rules.size-1
@@ -270,7 +273,7 @@ module RRSchedule
       end
     end
 
-    #get the next gameday
+    # get the next gameday
     def next_game_date(dt,wday)
       dt += 1 until wday == dt.wday && !@exclude_dates.include?(dt)
       dt
@@ -285,7 +288,7 @@ module RRSchedule
 
     def get_best_game_time(game)
       x = {}
-      game_time_left = @game_time_ps_avail.reject{|k,v| v.empty?}
+      game_time_left = @game_time_ps_avail.reject {|k,v| v.empty? }
 
       if @balanced_game_time
         game_time_left.each_key do |game_time|
@@ -294,7 +297,7 @@ module RRSchedule
             rand(1000)
           ]
         end
-        x.sort_by{|k,v| [v[0],v[1]]}.first[0]
+        x.sort_by {|k,v| [v[0],v[1]] }.first[0]
       else
         game_time_left.sort.first[0]
       end
@@ -326,7 +329,6 @@ module RRSchedule
     def update_resource_availability(cur_game_time,cur_ps)
       @game_time_ps_avail[cur_game_time].delete(cur_ps)
     end
-
 
     #return matchups between two teams
     def face_to_face(team_a,team_b)
