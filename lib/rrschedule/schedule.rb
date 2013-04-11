@@ -226,7 +226,7 @@ module RRSchedule
       end
 
       @cur_game_time = get_best_game_time(game)
-      @cur_ps = get_best_ps(game,@cur_game_time)
+      @cur_ps = get_best_playing_surface(game,@cur_game_time)
 
       @cur_date ||= next_game_date(self.start_date,@cur_rule.wday)
       @schedule ||= []
@@ -239,7 +239,7 @@ module RRSchedule
           @cur_rule = @rules[@cur_rule_index]
           reset_resource_availability
           @cur_game_time = get_best_game_time(game)
-          @cur_ps = get_best_ps(game,@cur_game_time)
+          @cur_ps = get_best_playing_surface(game,@cur_game_time)
           @cur_date = next_game_date(@cur_date+=1,@cur_rule.wday)
         end
       end
@@ -298,7 +298,7 @@ module RRSchedule
       end
     end
 
-    def get_best_ps(game,game_time)
+    def get_best_playing_surface(game,game_time)
       x = {}
 
       if self.balanced_playing_surface
