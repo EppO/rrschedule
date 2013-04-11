@@ -105,7 +105,7 @@ class TestRrschedule < Test::Unit::TestCase
     should "generate separate round-robins" do
       @s.generate
       assert_equal 4, @s.flights.size
-      4.times { |i| assert @s.round_robin?(i)}
+      4.times {|i| assert @s.valid_round_robin?(i) }
     end
 
     should "have a correct total number of games" do

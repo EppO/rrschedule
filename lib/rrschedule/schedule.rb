@@ -16,32 +16,46 @@ module RRSchedule
 
     def initialize(args)
       args = defaults.merge(args)
-      @gamedays = []
-      @teams = args[:teams]
-      @cycles = args[:cycles]
-      @shuffle = args[:shuffle]
-      @balanced_game_time = args[:balanced_game_time]
+      @gamedays                 = []
+      @teams                    = args[:teams]
+      @cycles                   = args[:cycles]
+      @shuffle                  = args[:shuffle]
+      @balanced_game_time       = args[:balanced_game_time]
       @balanced_playing_surface = args[:balanced_playing_surface]
-      @exclude_dates = args[:exclude_dates]
-      @start_date = args[:start_date]
-      @group_flights = args[:group_flights]
-      @rules = args[:rules]
+      @exclude_dates            = args[:exclude_dates]
+      @start_date               = args[:start_date]
+      @group_flights            = args[:group_flights]
+      @rules                    = args[:rules]
     end
 
     def defaults
       {
-        teams: [],
-        cycles: 1,
-        shuffle: true,
-        balanced_game_time: true,
+        teams:                    [],
+        cycles:                   1,
+        shuffle:                  true,
+        balanced_game_time:       true,
         balanced_playing_surface: true,
-        exclude_dates: [],
-        start_date: Date.today,
-        group_flights: true,
-        rules: []
+        exclude_dates:            [],
+        start_date:               Date.today,
+        group_flights:            true,
+        rules:                    []
       }
     end
 
+    def process_round(teams)
+      games = []
+      while !teams.empty? do
+        team_a = teams.shift
+        team_b = teams.reverse!.shift
+        teams.reverse!
+
+        x = [team_a, team_b].shuffle
+
+        matchup = { team_a: x[0], team_b: x[1] }
+        games << matchup
+      end
+      games
+    end
 
     #This will generate the schedule based on the various parameters
     def generate(params={})
@@ -60,41 +74,25 @@ module RRSchedule
 
         #loop to generate the whole round-robin(s) for the current flight
         begin
-          t = teams.clone
-          games = []
-
-          #process one round
-          while !t.empty? do
-            team_a = t.shift
-            team_b = t.reverse!.shift
-            t.reverse!
-
-            x = [team_a,team_b].shuffle
-
-            matchup = {:team_a => x[0], :team_b => x[1]}
-            games << matchup
-          end
-          #done processing round
-
+          games = process_round(teams.clone)
           current_round += 1
 
-          #Team rotation (the first team is fixed)
-          teams = teams.insert(1,teams.delete_at(teams.size-1))
+          # Team rotation (the first team is fixed)
+          teams = teams.insert(1, teams.delete_at(teams.size - 1))
 
-          #add the round in memory
+          # add the round in memory
           @rounds ||= []
           @rounds[flight_id] ||= []
           @rounds[flight_id] << Round.new(
             :round => current_round,
             :flight => flight_id,
-            :games => games.collect { |g|
+            :games => games.collect {|g|
               Game.new(
                 :team_a => g[:team_a],
                 :team_b => g[:team_b]
               )
             }
           )
-          #done adding round
 
           #have we completed a full round-robin for the current flight?
           if current_round == teams.size - 1
@@ -141,14 +139,17 @@ module RRSchedule
       end
     end
 
-    #returns true if the generated schedule is a valid round-robin (for testing purpose)
-    def round_robin?(flight_id=0)
-      #each round-robin round should contains n-1 games where n is the nbr of teams (:dummy included if odd)
-      return false if self.rounds[flight_id].size != (@flights[flight_id].size*self.cycles)-self.cycles
+    # returns true if the generated schedule is a valid round-robin (for testing purpose)
+    def valid_round_robin?(flight_id=0)
+      # each round-robin round should contains n-1 games where n is the number of
+      # teams (:dummy included if odd)
+
+      round_games = self.cycles * (@flights[flight_id].size - 1)
+      return false if self.rounds[flight_id].size != round_games
 
       #check if each team plays the same number of games against each other
       @flights[flight_id].each do |t1|
-        @flights[flight_id].reject{|t| t == t1}.each do |t2|
+        @flights[flight_id].reject{|t| t == t1 }.each do |t2|
           return false unless face_to_face(t1,t2).size == self.cycles || [t1,t2].include?(:dummy)
         end
       end
@@ -343,7 +344,7 @@ module RRSchedule
 
     #return matchups between two teams
     def face_to_face(team_a,team_b)
-      res=[]
+      res = []
       self.gamedays.each do |gd|
         res << gd.games.select {|g| (g.team_a == team_a && g.team_b == team_b) || (g.team_a == team_b && g.team_b == team_a)}
       end
