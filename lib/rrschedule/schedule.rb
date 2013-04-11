@@ -14,7 +14,7 @@ module RRSchedule
                   :balanced_game_time,
                   :balanced_playing_surface
 
-    def initialize(args)
+    def initialize(args={})
       args = defaults.merge(args)
       @gamedays                 = []
       @teams                    = args[:teams]
@@ -68,11 +68,10 @@ module RRSchedule
       @gamedays = []
       @rounds = []
 
-      @flights.each_with_index do |teams,flight_id|
+      @flights.each_with_index do |teams, flight_id|
         current_cycle = current_round = 0
         teams = teams.sort_by{rand} if @shuffle
 
-        #loop to generate the whole round-robin(s) for the current flight
         begin
           games = process_round(teams.clone)
           current_round += 1
@@ -80,7 +79,6 @@ module RRSchedule
           # Team rotation (the first team is fixed)
           teams = teams.insert(1, teams.delete_at(teams.size - 1))
 
-          # add the round in memory
           @rounds ||= []
           @rounds[flight_id] ||= []
           @rounds[flight_id] << Round.new(
@@ -107,6 +105,7 @@ module RRSchedule
       self
     end
 
+    # nbr == number?
     def total_nbr_games
       total = 0
 
@@ -119,8 +118,8 @@ module RRSchedule
     #human readable schedule
     def to_s
       res = ""
-      res << "#{self.gamedays.size.to_s} gamedays\n"
-      self.gamedays.each do |gd|
+      res << "#{@gamedays.size.to_s} gamedays\n"
+      @gamedays.each do |gd|
         res << gd.date.strftime("%Y-%m-%d") + "\n"
         res << "==========\n"
         gd.games.sort {|g1, g2| compare_games g1, g2 }.each do |g|
@@ -230,7 +229,7 @@ module RRSchedule
             :game_time => gm [:game_time]
           )
         end
-        self.gamedays << Gameday.new(:date => gamedate, :games => games)
+        @gamedays << Gameday.new(:date => gamedate, :games => games)
       end
     end
 
@@ -345,7 +344,7 @@ module RRSchedule
     #return matchups between two teams
     def face_to_face(team_a,team_b)
       res = []
-      self.gamedays.each do |gd|
+      @gamedays.each do |gd|
         res << gd.games.select {|g| (g.team_a == team_a && g.team_b == team_b) || (g.team_a == team_b && g.team_b == team_a)}
       end
       res.flatten
@@ -357,17 +356,17 @@ module RRSchedule
       @stats = {}
       @teams.flatten.each do |t|
         @stats[t] = {:game_times => {}, :playing_surfaces => {}}
-        all_game_time.each { |game_time| @stats[t][:game_times][game_time] = 0 }
-        all_ps.each { |ps| @stats[t][:playing_surfaces][ps] = 0 }
+        all_game_times.each { |game_time| @stats[t][:game_times][game_time] = 0 }
+        all_playing_surfaces.each { |ps| @stats[t][:playing_surfaces][ps] = 0 }
       end
     end
 
     #returns an array of all available game times / playing surfaces, all rules included.
-    def all_game_time
+    def all_game_times
       @rules.collect{|r| r.game_times }.flatten.uniq
     end
 
-    def all_ps
+    def all_playing_surfaces
       @rules.collect {|r| r.playing_surfaces }.flatten.uniq
     end
   end
