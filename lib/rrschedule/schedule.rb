@@ -54,7 +54,6 @@ module RRSchedule
       games
     end
 
-    #This will generate the schedule based on the various parameters
     def generate(params={})
       raise "You need to specify at least 1 team" if @teams.nil? || @teams.empty?
       raise "You need to specify at least 1 rule" if @rules.nil? || @rules.empty?
@@ -102,8 +101,7 @@ module RRSchedule
       self
     end
 
-    # nbr == number?
-    def total_nbr_games
+    def total_games
       total = 0
 
       @flights.each do |teams|
@@ -177,7 +175,7 @@ module RRSchedule
       else
         flight_index = round_index = 0
         game_count = 0
-        while game_count < total_nbr_games
+        while game_count < total_games
           if rounds_copy[flight_index][round_index] != nil
             game = rounds_copy[flight_index][round_index].games.shift
             if game
