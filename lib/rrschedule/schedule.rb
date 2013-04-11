@@ -111,7 +111,7 @@ module RRSchedule
         res << gd.date.strftime("%Y-%m-%d") + "\n"
         res << "==========\n"
         gd.games.sort {|g1, g2| compare_games g1, g2 }.each do |g|
-          res << "#{g.ta.to_s} vs #{g.tb.to_s} on playing surface #{g.ps} at #{g.game_time.strftime("%I:%M %p")}\n"
+          res << "#{g.ta.to_s} vs #{g.tb.to_s} on playing surface #{g.playing_surface} at #{g.game_time.strftime("%I:%M %p")}\n"
         end
         res << "\n"
       end
@@ -120,7 +120,7 @@ module RRSchedule
 
     def compare_games g1, g2
       if g1.game_time == g2.game_time
-        g1.ps <=> g2.ps
+        g1.playing_surface <=> g2.playing_surface
       else
         g1.game_time <=> g2.game_time
       end
@@ -210,7 +210,7 @@ module RRSchedule
           games << Game.new(
             :team_a => gm[:team_a],
             :team_b => gm[:team_b],
-            :playing_surface => gm[:ps],
+            :playing_surface => gm[:playing_surface],
             :game_time => gm [:game_time]
           )
         end
@@ -245,7 +245,7 @@ module RRSchedule
       end
 
       #We found our playing surface and game time, add the game in the schedule.
-      @schedule << {:team_a => game.team_a, :team_b => game.team_b, :gamedate => @cur_date, :ps => @cur_ps, :game_time => @cur_game_time}
+      @schedule << {:team_a => game.team_a, :team_b => game.team_b, :gamedate => @cur_date, :playing_surface => @cur_ps, :game_time => @cur_game_time}
       update_team_stats(game,@cur_game_time,@cur_ps)
       update_resource_availability(@cur_game_time,@cur_ps)
 
@@ -275,10 +275,10 @@ module RRSchedule
     end
 
     def update_team_stats(game,cur_game_time,cur_ps)
-      @stats[game.team_a][:game_time][cur_game_time] += 1
-      @stats[game.team_a][:ps][cur_ps] += 1
-      @stats[game.team_b][:game_time][cur_game_time] += 1
-      @stats[game.team_b][:ps][cur_ps] += 1
+      @stats[game.team_a][:game_times][cur_game_time] += 1
+      @stats[game.team_a][:playing_surfaces][cur_ps] += 1
+      @stats[game.team_b][:game_times][cur_game_time] += 1
+      @stats[game.team_b][:playing_surfaces][cur_ps] += 1
     end
 
     def get_best_game_time(game)
@@ -288,7 +288,7 @@ module RRSchedule
       if self.balanced_game_time
         game_time_left.each_key do |game_time|
           x[game_time] = [
-            @stats[game.team_a][:game_time][game_time] + @stats[game.team_b][:game_time][game_time],
+            @stats[game.team_a][:game_times][game_time] + @stats[game.team_b][:game_times][game_time],
             rand(1000)
           ]
         end
@@ -298,13 +298,13 @@ module RRSchedule
       end
     end
 
-    def get_best_playing_surface(game,game_time)
+    def get_best_playing_surface(game, game_time)
       x = {}
 
       if self.balanced_playing_surface
         @game_time_ps_avail[game_time].each do |ps|
           x[ps] = [
-            @stats[game.team_a][:ps][ps] + @stats[game.team_b][:ps][ps],
+            @stats[game.team_a][:playing_surfaces][ps] + @stats[game.team_b][:playing_surfaces][ps],
             rand(1000)
           ]
         end
@@ -316,8 +316,8 @@ module RRSchedule
 
     def reset_resource_availability
       @game_time_ps_avail = {}
-      @cur_rule.game_time.each do |game_time|
-        @game_time_ps_avail[game_time] = @cur_rule.ps.clone
+      @cur_rule.game_times.each do |game_time|
+        @game_time_ps_avail[game_time] = @cur_rule.playing_surfaces.clone
       end
     end
 
@@ -340,15 +340,20 @@ module RRSchedule
     def init_stats
       @stats = {}
       @teams.flatten.each do |t|
-        @stats[t] = {:game_time => {}, :ps => {}}
-        all_game_time.each { |game_time| @stats[t][:game_time][game_time] = 0 }
-        all_ps.each { |ps| @stats[t][:ps][ps] = 0 }
+        @stats[t] = {:game_times => {}, :playing_surfaces => {}}
+        all_game_time.each { |game_time| @stats[t][:game_times][game_time] = 0 }
+        all_ps.each { |ps| @stats[t][:playing_surfaces][ps] = 0 }
       end
     end
 
     #returns an array of all available game times / playing surfaces, all rules included.
-    def all_game_time; @rules.collect{|r| r.game_time}.flatten.uniq; end
-    def all_ps; @rules.collect{|r| r.ps}.flatten.uniq; end
+    def all_game_time
+      @rules.collect{|r| r.game_times }.flatten.uniq
+    end
+
+    def all_ps
+      @rules.collect {|r| r.playing_surfaces }.flatten.uniq
+    end
   end
 
 end
