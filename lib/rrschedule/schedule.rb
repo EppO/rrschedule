@@ -14,19 +14,34 @@ module RRSchedule
                   :balanced_game_time,
                   :balanced_playing_surface
 
-    def initialize(params={})
+    def initialize(args)
+      args = defaults.merge(args)
       @gamedays = []
-      self.teams = params[:teams] || []
-      self.cycles = params[:cycles] || 1
-      self.shuffle = params[:shuffle].nil? ? true : params[:shuffle]
-      self.balanced_game_time = params[:balanced_game_time].nil? ? true : params[:balanced_game_time]
-      self.balanced_playing_surface = params[:balanced_playing_surface].nil? ? true : params[:balanced_playing_surface]
-      self.exclude_dates = params[:exclude_dates] || []
-      self.start_date = params[:start_date] || Date.today
-      self.group_flights = params[:group_flights].nil? ? true : params[:group_flights]
-      self.rules = params[:rules] || []
-      self
+      @teams = args[:teams]
+      @cycles = args[:cycles]
+      @shuffle = args[:shuffle]
+      @balanced_game_time = args[:balanced_game_time]
+      @balanced_playing_surface = args[:balanced_playing_surface]
+      @exclude_dates = args[:exclude_dates]
+      @start_date = args[:start_date]
+      @group_flights = args[:group_flights]
+      @rules = args[:rules]
     end
+
+    def defaults
+      {
+        teams: [],
+        cycles: 1,
+        shuffle: true,
+        balanced_game_time: true,
+        balanced_playing_surface: true,
+        exclude_dates: [],
+        start_date: Date.today,
+        group_flights: true,
+        rules: []
+      }
+    end
+
 
     #This will generate the schedule based on the various parameters
     def generate(params={})
@@ -36,8 +51,8 @@ module RRSchedule
       arrange_flights
       init_stats
 
-      @gamedays = []; @rounds = []
-
+      @gamedays = []
+      @rounds = []
 
       @flights.each_with_index do |teams,flight_id|
         current_cycle = current_round = 0
@@ -82,12 +97,12 @@ module RRSchedule
           #done adding round
 
           #have we completed a full round-robin for the current flight?
-          if current_round == teams.size-1
+          if current_round == teams.size - 1
             current_cycle += 1
             current_round = 0 if current_cycle < self.cycles
           end
 
-        end until current_round == teams.size-1 && current_cycle==self.cycles
+        end until current_round == teams.size - 1 && current_cycle == self.cycles
       end
 
       dispatch_games(@rounds)
@@ -172,13 +187,13 @@ module RRSchedule
         end
       else
         flight_index = round_index = 0
-        game_ctr = 0
-        while game_ctr < total_nbr_games
+        game_count = 0
+        while game_count < total_nbr_games
           if rounds_copy[flight_index][round_index] != nil
             game = rounds_copy[flight_index][round_index].games.shift
             if game
               flat_games << game
-              game_ctr += 1
+              game_count += 1
             end
           end
 
@@ -188,9 +203,9 @@ module RRSchedule
             round_empty = round_empty && (rounds_copy[i][round_index].nil? || rounds_copy[i][round_index].games.empty?)
           end
 
-          if flight_index == @flights.size-1
+          if flight_index == @flights.size - 1
             flight_index = 0
-            round_index+=1 if round_empty
+            round_index += 1 if round_empty
           else
             flight_index += 1
           end
