@@ -61,7 +61,6 @@ module RRSchedule
       arrange_flights
       init_stats
 
-      @gamedays = []
       @rounds = []
 
       @flights.each_with_index do |teams, flight_id|
@@ -78,12 +77,12 @@ module RRSchedule
           @rounds ||= []
           @rounds[flight_id] ||= []
           @rounds[flight_id] << Round.new(
-            :round => current_round,
-            :flight => flight_id,
-            :games => games.collect {|g|
+            round: current_round,
+            flight: flight_id,
+            games: games.collect {|g|
               Game.new(
-                :team_a => g[:team_a],
-                :team_b => g[:team_b]
+                team_a: g[:team_a],
+                team_b: g[:team_b]
               )
             }
           )
@@ -147,8 +146,8 @@ module RRSchedule
 
     private
 
+    # A "flight" is a division where teams play round-robin against each other
     def arrange_flights
-      # a flight is a division where teams play round-robin against each other
       @flights = Marshal.load(Marshal.dump(@teams)) #deep clone
 
       # If teams aren't in flights, we create a single flight and put all teams in it
@@ -187,8 +186,8 @@ module RRSchedule
             end
           end
 
-          #check if round is empty
-          round_empty=true
+          # check if round is empty
+          round_empty = true
           @flights.size.times do |i|
             round_empty = round_empty && (rounds_copy[i][round_index].nil? || rounds_copy[i][round_index].games.empty?)
           end
