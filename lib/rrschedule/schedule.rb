@@ -63,41 +63,46 @@ module RRSchedule
 
       @rounds = []
 
-      @flights.each_with_index do |teams, flight_id|
-        current_cycle = current_round = 0
-        teams = teams.sort_by{rand} if @shuffle
-
-        begin
-          games = process_round(teams.clone)
-          current_round += 1
-
-          # Team rotation (the first team is fixed)
-          teams = teams.insert(1, teams.delete_at(teams.size - 1))
-
-          @rounds ||= []
-          @rounds[flight_id] ||= []
-          @rounds[flight_id] << Round.new(
-            round: current_round,
-            flight: flight_id,
-            games: games.collect {|g|
-              Game.new(
-                team_a: g[:team_a],
-                team_b: g[:team_b]
-              )
-            }
-          )
-
-          #have we completed a full round-robin for the current flight?
-          if current_round == teams.size - 1
-            current_cycle += 1
-            current_round = 0 if current_cycle < @cycles
-          end
-
-        end until current_round == teams.size - 1 && current_cycle == @cycles
+      @flights.each_with_index do |flight, flight_id|
+        process_flight(flight, flight_id)
       end
 
       dispatch_games(@rounds)
       self
+    end
+
+    def process_flight(flight, flight_id)
+      flight = flight.sort_by { rand } if @shuffle
+
+      current_cycle = current_round = 0
+
+      begin
+        games = process_round(flight.clone)
+        current_round += 1
+
+        # Team rotation (the first team is fixed)
+        flight = flight.insert(1, flight.delete_at(flight.size - 1))
+
+        @rounds ||= []
+        @rounds[flight_id] ||= []
+        @rounds[flight_id] << Round.new(
+          round: current_round,
+          flight: flight_id,
+          games: games.collect {|g|
+            Game.new(
+              team_a: g[:team_a],
+              team_b: g[:team_b]
+            )
+          }
+        )
+
+        #have we completed a full round-robin for the current flight?
+        if current_round == flight.size - 1
+          current_cycle += 1
+          current_round = 0 if current_cycle < @cycles
+        end
+
+      end until current_round == flight.size - 1 && current_cycle == @cycles
     end
 
     def total_games
