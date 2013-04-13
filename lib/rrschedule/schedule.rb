@@ -161,45 +161,50 @@ module RRSchedule
       end
     end
 
-    # Dispatch games according to available playing surfaces and game times
+    def flight_group(rounds)
+      flat_games = []
+      while rounds.flatten.size > 0 do
+        @flights.each_with_index do |f, flight_index|
+          r = rounds[flight_index].shift
+          flat_games << r.games if r
+        end
+      end
+      flat_games
+    end
+
+    def flat_flight(rounds)
+      flat_games = []
+      flight_index = round_index = 0
+      game_count = 0
+      while game_count < total_games
+        if rounds[flight_index][round_index] != nil
+          game = rounds[flight_index][round_index].games.shift
+          if game
+            flat_games << game
+            game_count += 1
+          end
+        end
+
+        round_empty = true
+        @flights.each do |i|
+          round_empty = round_empty && (rounds[i][round_index].nil? || rounds[i][round_index].games.empty?)
+        end
+
+        if flight_index == @flights.size - 1
+          flight_index = 0
+          round_index += 1 if round_empty
+        else
+          flight_index += 1
+        end
+      end
+      flat_games
+    end
+
     def dispatch_games(rounds)
 
       rounds_copy = Marshal.load(Marshal.dump(rounds)) # deep clone
 
-      flat_games = []
-
-      if @group_flights
-        while rounds_copy.flatten.size > 0 do
-          @flights.each_with_index do |f, flight_index|
-            r = rounds_copy[flight_index].shift
-            flat_games << r.games if r
-          end
-        end
-      else
-        flight_index = round_index = 0
-        game_count = 0
-        while game_count < total_games
-          if rounds_copy[flight_index][round_index] != nil
-            game = rounds_copy[flight_index][round_index].games.shift
-            if game
-              flat_games << game
-              game_count += 1
-            end
-          end
-
-          round_empty = true
-          @flights.each do |i|
-            round_empty = round_empty && (rounds_copy[i][round_index].nil? || rounds_copy[i][round_index].games.empty?)
-          end
-
-          if flight_index == @flights.size - 1
-            flight_index = 0
-            round_index += 1 if round_empty
-          else
-            flight_index += 1
-          end
-        end
-      end
+      flat_games = @group_flights? flight_group(rounds_copy) : flat_flight(rounds_copy)
 
       flat_games.flatten!
       flat_games.each do |g|
