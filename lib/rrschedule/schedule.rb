@@ -152,7 +152,10 @@ module RRSchedule
 
       # If teams aren't in flights, we create a single flight and put all teams in it
       @flights = [@flights] unless @flights.first.respond_to?(:to_ary)
+      check_flights
+    end
 
+    def check_flights
       @flights.each_with_index do |flight, i|
         raise ":dummy is a reserved team name. Please use something else" if flight.member?(:dummy)
         raise "at least 2 teams are required" if flight.size < 2
