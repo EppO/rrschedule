@@ -233,6 +233,23 @@ module RRSchedule
       games_this_date.any? {|g| [game.team_a,game.team_b].include?(g[:team_a]) || [game.team_a,game.team_b].include?(g[:team_b]) }
     end
 
+
+    # if one of the teams has already played on this gamedate, we change the rule
+    def gamedate_check(game)
+      if @schedule.size > 0
+        games_this_date = @schedule.select{|v| v[:gamedate] == @cur_date }
+
+        if any_games_this_date(game, games_this_date)
+          @cur_rule_index = (@cur_rule_index < @rules.size - 1) ? @cur_rule_index + 1 : 0
+          @cur_rule = @rules[@cur_rule_index]
+          reset_resource_availability
+          @cur_game_time = get_best_game_time(game)
+          @cur_ps = get_best_playing_surface(game, @cur_game_time)
+          @cur_date = next_game_date(@cur_date += 1, @cur_rule.wday)
+        end
+      end
+    end
+
     def dispatch_game(game)
       if @cur_rule.nil?
         @cur_rule = @rules.select {|r| r.wday >= @start_date.wday }.first || @rules.first
@@ -246,19 +263,7 @@ module RRSchedule
 
       @schedule ||= []
 
-      # if one of the teams has already played on this gamedate, we change rule
-      if @schedule.size > 0
-        games_this_date = @schedule.select{|v| v[:gamedate] == @cur_date }
-
-        if any_games_this_date(game, games_this_date)
-          @cur_rule_index = (@cur_rule_index < @rules.size - 1) ? @cur_rule_index + 1 : 0
-          @cur_rule = @rules[@cur_rule_index]
-          reset_resource_availability
-          @cur_game_time = get_best_game_time(game)
-          @cur_ps = get_best_playing_surface(game, @cur_game_time)
-          @cur_date = next_game_date(@cur_date += 1, @cur_rule.wday)
-        end
-      end
+      gamedate_check(game)
 
       @schedule.push(
         {
@@ -272,10 +277,10 @@ module RRSchedule
       update_team_stats(game, @cur_game_time, @cur_ps)
       update_resource_availability(@cur_game_time, @cur_ps)
 
-      # If we don't have any resources left, we change the rule
       rule_filter
     end
 
+    # If we don't have any resources left, we change the rule
     def rule_filter
       x = @game_time_ps_avail.reject{|k,v| v.empty? }
       if x.empty?
