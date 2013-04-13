@@ -19,5 +19,9 @@ module RRSchedule
         game_time <=> other.game_time
       end
     end
+
+    def to_s
+      "#{@team_a.to_s} vs #{@team_b.to_s} on playing surface #{@playing_surface} at #{@game_time.strftime("%I:%M %p")}\n"
+    end
   end
 end
