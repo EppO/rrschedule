@@ -14,6 +14,7 @@ module RRSchedule
     def initialize(args={})
       args = defaults.merge(args)
       @gamedays                 = []
+      @schedule                 = []
       @teams                    = args[:teams]
       @cycles                   = args[:cycles]
       @shuffle                  = args[:shuffle]
@@ -175,6 +176,14 @@ module RRSchedule
       flat_games
     end
 
+    def check_round_empty(rounds, round_index)
+      round_empty = true
+      @flights.each do |i|
+        round_empty = round_empty && (rounds[i][round_index].nil? || rounds[i][round_index].games.empty?)
+      end
+      round_empty
+    end
+
     def flat_flight(rounds)
       flat_games = []
       flight_index = round_index = 0
@@ -188,14 +197,9 @@ module RRSchedule
           end
         end
 
-        round_empty = true
-        @flights.each do |i|
-          round_empty = round_empty && (rounds[i][round_index].nil? || rounds[i][round_index].games.empty?)
-        end
-
         if flight_index == @flights.size - 1
           flight_index = 0
-          round_index += 1 if round_empty
+          round_index += 1 if check_round_empty(rounds, round_index)
         else
           flight_index += 1
         end
@@ -236,7 +240,6 @@ module RRSchedule
       games_this_date.any? {|g| [game.team_a,game.team_b].include?(g[:team_a]) || [game.team_a,game.team_b].include?(g[:team_b]) }
     end
 
-
     # if one of the teams has already played on this gamedate, we change the rule
     def gamedate_check(game)
       if @schedule.size > 0
@@ -263,8 +266,6 @@ module RRSchedule
       @cur_game_time = get_best_game_time(game)
       @cur_ps = get_best_playing_surface(game, @cur_game_time)
       @cur_date ||= next_game_date(@start_date, @cur_rule.wday)
-
-      @schedule ||= []
 
       gamedate_check(game)
 
