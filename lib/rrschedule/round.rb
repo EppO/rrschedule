@@ -2,17 +2,24 @@ module RRSchedule
   class Round
     attr_accessor :round, :games, :flight
 
-    def initialize(params={})
-      self.round = params[:round]
-      self.flight = params[:flight]
-      self.games = params[:games] || []
+    def initialize(args={})
+      args = defaults.merge(args)
+      @round = args[:round]
+      @flight = args[:flight]
+      @games = args[:games]
+    end
+
+    def defaults
+      {
+        games: []
+      }
     end
 
     def to_s
       str = "FLIGHT #{@flight.to_s} - Round ##{@round.to_s}\n"
       str += "=====================\n"
 
-      self.games.each do |g|
+      @games.each do |g|
         if [g.team_a, g.team_b].include?(:dummy)
           str += bye(g)
         else

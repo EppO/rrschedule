@@ -109,7 +109,7 @@ module RRSchedule
       total = 0
 
       @flights.each do |teams|
-         total += (teams.size / 2) * (teams.size - 1)
+        total += (teams.size / 2) * (teams.size - 1)
       end
       total
     end
@@ -206,7 +206,10 @@ module RRSchedule
         dispatch_game(g) unless [g.team_a, g.team_b].include?(:dummy)
       end
 
-      # We group our schedule by gameday
+      group_schedule
+    end
+
+    def group_schedule
       s = @schedule.group_by{|fs| fs[:gamedate] }.sort
       s.each do |gamedate, gms|
         games = []
