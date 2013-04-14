@@ -75,16 +75,17 @@ module RRSchedule
     def process_flight(flight, flight_id)
       flight = flight.sort_by { rand } if @shuffle
 
-      current_cycle = current_round = 0
+      current_cycle = 0
+      current_round = 0
 
-      begin
+      while current_round < flight.size - 1 && current_cycle < @cycles
         games = process_round(flight.clone)
         current_round += 1
 
         # Team rotation (the first team is fixed)
+        # Insert into the first flight position the flight with the last element removed
         flight = flight.insert(1, flight.delete_at(flight.size - 1))
 
-        @rounds ||= []
         @rounds[flight_id] ||= []
         @rounds[flight_id] << Round.new(
           round: current_round,
@@ -103,7 +104,7 @@ module RRSchedule
           current_round = 0 if current_cycle < @cycles
         end
 
-      end until current_round == flight.size - 1 && current_cycle == @cycles
+      end
     end
 
     def total_games
@@ -186,10 +187,12 @@ module RRSchedule
 
     def flat_flight(rounds)
       flat_games = []
-      flight_index = round_index = 0
+      flight_index = 0
+      round_index = 0
       game_count = 0
+
       while game_count < total_games
-        if rounds[flight_index][round_index] != nil
+        unless rounds[flight_index][round_index].nil?
           game = rounds[flight_index][round_index].games.shift
           if game
             flat_games << game
