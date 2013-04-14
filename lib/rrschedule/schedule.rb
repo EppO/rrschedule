@@ -15,6 +15,8 @@ module RRSchedule
       args = defaults.merge(args)
       @gamedays                 = []
       @schedule                 = []
+      @rounds                   = []
+      @flights                  = []
       @teams                    = args[:teams]
       @cycles                   = args[:cycles]
       @shuffle                  = args[:shuffle]
@@ -61,8 +63,6 @@ module RRSchedule
 
       arrange_flights
       init_stats
-
-      @rounds = []
 
       @flights.each_with_index do |flight, flight_id|
         process_flight(flight, flight_id)
