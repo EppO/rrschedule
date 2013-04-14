@@ -72,6 +72,20 @@ module RRSchedule
       self
     end
 
+    def add_round(flight_id, current_round, games)
+      @rounds[flight_id] ||= []
+      @rounds[flight_id] << Round.new(
+        round: current_round,
+        flight: flight_id,
+        games: games.collect {|g|
+          Game.new(
+            team_a: g[:team_a],
+            team_b: g[:team_b]
+          )
+        }
+      )
+    end
+
     def process_flight(flight, flight_id)
       flight = flight.sort_by { rand } if @shuffle
 
@@ -86,17 +100,7 @@ module RRSchedule
         # Insert into the first flight position the flight with the last element removed
         flight = flight.insert(1, flight.delete_at(flight.size - 1))
 
-        @rounds[flight_id] ||= []
-        @rounds[flight_id] << Round.new(
-          round: current_round,
-          flight: flight_id,
-          games: games.collect {|g|
-            Game.new(
-              team_a: g[:team_a],
-              team_b: g[:team_b]
-            )
-          }
-        )
+        add_round(flight_id, current_round, games)
 
         # have we completed a full round-robin for the current flight?
         if current_round == flight.size - 1
