@@ -324,36 +324,46 @@ module RRSchedule
     end
 
     def get_best_game_time(game)
-      x = {}
       game_time_left = @game_time_ps_avail.reject {|k,v| v.empty? }
 
       if @balanced_game_time
-        game_time_left.each_key do |game_time|
-          x[game_time] = [
-            @stats[game.team_a][:game_times][game_time] + @stats[game.team_b][:game_times][game_time],
-            rand(1000)
-          ]
-        end
-        x.sort_by {|k,v| [v[0],v[1]] }.first[0]
+        x = balance_game_times(game, game_time_left)
       else
-        game_time_left.sort.first[0]
+        x = game_time_left.sort.first[0]
       end
+      x
+    end
+
+    def balance_game_times(game, game_time_left)
+      x = {}
+      game_time_left.each_key do |game_time|
+        x[game_time] = [
+          @stats[game.team_a][:game_times][game_time] + @stats[game.team_b][:game_times][game_time],
+          rand(1000)
+        ]
+      end
+      x.sort_by {|k,v| [v[0],v[1]] }.first[0]
     end
 
     def get_best_playing_surface(game, game_time)
       x = {}
-
       if @balanced_playing_surface
-        @game_time_ps_avail[game_time].each do |ps|
-          x[ps] = [
-            @stats[game.team_a][:playing_surfaces][ps] + @stats[game.team_b][:playing_surfaces][ps],
-            rand(1000)
-          ]
-        end
-        x.sort_by{|k,v| [v[0],v[1]] }.first[0]
+        x = balance_playing_surfaces(game, game_time)
       else
-        @game_time_ps_avail[game_time].first[0]
+        x = @game_time_ps_avail[game_time].first[0]
       end
+      x
+    end
+
+    def balance_playing_surfaces(game, game_time)
+      x = {}
+      @game_time_ps_avail[game_time].each do |ps|
+        x[ps] = [
+          @stats[game.team_a][:playing_surfaces][ps] + @stats[game.team_b][:playing_surfaces][ps],
+          rand(1000)
+        ]
+      end
+      x.sort_by{|k,v| [v[0],v[1]] }.first[0]
     end
 
     def reset_resource_availability
