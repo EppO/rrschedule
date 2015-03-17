@@ -1,10 +1,12 @@
 module RRSchedule
   class Round
-    attr_accessor :round, :games, :flight
+    attr_accessor :round, :cycle, :round_with_cycle, :games, :flight
 
     def initialize(args={})
       args = defaults.merge(args)
       @round = args[:round]
+      @cycle = args[:cycle]
+      @round_with_cycle = args[:round_with_cycle]
       @flight = args[:flight]
       @games = args[:games]
     end

@@ -5,11 +5,13 @@ module RRSchedule
                   :rules,
                   :cycles,
                   :start_date,
+                  :end_date,
                   :exclude_dates,
                   :shuffle,
                   :group_flights,
                   :balanced_game_time,
-                  :balanced_playing_surface
+                  :balanced_playing_surface,
+                  :max_games
 
     def initialize(args={})
       args = defaults.merge(args)
@@ -24,8 +26,10 @@ module RRSchedule
       @balanced_playing_surface = args[:balanced_playing_surface]
       @exclude_dates            = args[:exclude_dates]
       @start_date               = args[:start_date]
+      @end_date                 = args[:end_date]
       @group_flights            = args[:group_flights]
       @rules                    = args[:rules]
+      @max_games                = args[:max_games]
     end
 
     def defaults
@@ -37,19 +41,21 @@ module RRSchedule
         balanced_playing_surface: true,
         exclude_dates:            [],
         start_date:               Date.today,
+        end_date:                 nil,
         group_flights:            true,
-        rules:                    []
+        rules:                    [],
+        max_games:                Float::INFINITY
       }
     end
 
-    def process_round(teams)
+    def process_round(teams, current_cycle)
       games = []
       while !teams.empty? do
         team_a = teams.shift
         team_b = teams.reverse!.shift
         teams.reverse!
 
-        x = [team_a, team_b].shuffle
+        x = (current_cycle % 2) == 0 ? [team_a,team_b] : [team_b,team_a]
 
         matchup = { team_a: x[0], team_b: x[1] }
         games << matchup
@@ -72,10 +78,12 @@ module RRSchedule
       self
     end
 
-    def add_round(flight_id, current_round, games)
+    def add_round(flight_id, current_round, current_cycle, games)
       @rounds[flight_id] ||= []
       @rounds[flight_id] << Round.new(
         round: current_round,
+        cycle: current_cycle + 1,
+        round_with_cycle: current_cycle * (teams.size-1) + current_round,
         flight: flight_id,
         games: games.collect {|g|
           Game.new(
@@ -91,23 +99,26 @@ module RRSchedule
 
       current_cycle = 0
       current_round = 0
+      games_count = 0
 
       while current_round < flight.size - 1 && current_cycle < @cycles
-        games = process_round(flight.clone)
+        games = process_round(flight.clone, current_cycle)
+        games_count += games.size
         current_round += 1
 
         # Team rotation (the first team is fixed)
         # Insert into the first flight position the flight with the last element removed
         flight = flight.insert(1, flight.delete_at(flight.size - 1))
 
-        add_round(flight_id, current_round, games)
+        add_round(flight_id, current_round, current_cycle, games)
 
         # have we completed a full round-robin for the current flight?
         if current_round == flight.size - 1
           current_cycle += 1
           current_round = 0 if current_cycle < @cycles
         end
-
+        
+        break if @rounds[flight_id].size == @max_games
       end
     end
 
