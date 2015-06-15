@@ -55,7 +55,7 @@ class TestRrschedule < Test::Unit::TestCase
           Rule.new(
             :wday => 3,
             :game_time => ["7:00PM", "9:00PM"],
-            :ps => %w(one two three four)
+            :playing_surfaces => %w(one two three four)
           )
         ]
       ).generate
@@ -91,7 +91,7 @@ class TestRrschedule < Test::Unit::TestCase
           Rule.new(
             :wday => 3,
             :game_time => ["7:00PM", "9:00PM"],
-            :ps => ["one","two"]
+            :playing_surfaces => ["one","two"]
           )
         ],
 
@@ -184,11 +184,50 @@ class TestRrschedule < Test::Unit::TestCase
       end
     end
   end
+  
+  context "with an end date and a maximum number of games" do
+    setup do
+      @s = Schedule.new(
+        :teams => [
+          %w(A1 A2 A3 A4 A5 A6),
+        ],
+
+        :rules => [
+          Rule.new(
+            :wday => 3,
+            :game_time => ["7:00PM", "8:00PM", "9:00PM"],
+            :playing_surfaces => ["one"]
+          )
+        ],
+
+        start_date: Date.parse("2015/05/08"),
+        exclude_dates: [ Date.parse("2015/06/17"), Date.parse("2015/06/24"), Date.parse("2015/07/15") ],
+        include_dates: [ Date.parse("2015/05/08"), Date.parse("2015/06/12"), Date.parse("2015/06/26"), Date.parse("2015/07/17"), Date.parse("2015/08/03") ],
+        cycles: 4,
+        max_games: 14
+      )
+      @s.generate
+    end
+    
+    should "have games for a date that is explicitly included" do
+      game_days = @s.gamedays.collect{|gd| gd.date.to_date}
+      assert [Date.parse("2015/05/08"), Date.parse("2015/06/12"), Date.parse("2015/06/26"), Date.parse("2015/07/17"), Date.parse("2015/08/03")].all?{|gd| game_days.include?(gd)}
+    end
+    
+    should "not have games for a date that is excluded" do
+      game_days = @s.gamedays.collect{|gd| gd.date}
+      assert !([Date.parse("2015/06/17"), Date.parse("2015/06/24"), Date.parse("2015/07/15")].any? { |gd| game_days.include?(gd) })
+    end
+    
+    should "not have more than max games" do
+      assert @s.gamedays.collect{|gd| gd.games.size }.inject(:+) == 14 * 6 / 2
+    end
+  end
 
   def some_rules
     [
-      Rule.new(:wday => 1, :game_time => "7:00PM", :ps => "one"),
-      Rule.new(:wday => 1, :game_time => "8:00PM", :ps => %w(one two))
+      Rule.new(:wday => 1, :game_time => "7:00PM", :playing_surfaces => "one"),
+      Rule.new(:wday => 1, :game_time => "8:00PM", :playing_surfaces => %w(one two))
     ]
   end
 end

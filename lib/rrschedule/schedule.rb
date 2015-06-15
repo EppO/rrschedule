@@ -25,6 +25,7 @@ module RRSchedule
       @balanced_game_time       = args[:balanced_game_time]
       @balanced_playing_surface = args[:balanced_playing_surface]
       @exclude_dates            = args[:exclude_dates]
+      @include_dates            = args[:include_dates]
       @start_date               = args[:start_date]
       @end_date                 = args[:end_date]
       @group_flights            = args[:group_flights]
@@ -40,6 +41,7 @@ module RRSchedule
         balanced_game_time:       true,
         balanced_playing_surface: true,
         exclude_dates:            [],
+        include_dates:            [],
         start_date:               Date.today,
         end_date:                 nil,
         group_flights:            true,
@@ -323,7 +325,7 @@ module RRSchedule
 
     # get the next gameday
     def next_game_date(dt, wday)
-      dt += 1 until wday == dt.wday && !@exclude_dates.include?(dt)
+      dt += 1 until (wday == dt.wday && !@exclude_dates.include?(dt)) || @include_dates.include?(dt)
       dt
     end
 
