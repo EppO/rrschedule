@@ -4,12 +4,12 @@ module RRSchedule
 
     attr_accessor :team_a, :team_b, :playing_surface, :game_time, :game_date
 
-    def initialize(params={})
-      @team_a           = params[:team_a]
-      @team_b           = params[:team_b]
-      @playing_surface  = params[:playing_surface]
-      @game_time        = params[:game_time]
-      @game_date        = params[:game_date]
+    def initialize(team_a:, team_b:, playing_surface: nil, game_date: nil, game_time: nil)
+      @team_a           = team_a
+      @team_b           = team_b
+      @playing_surface  = playing_surface
+      @game_date        = game_date
+      @game_time        = game_time
     end
 
     def <=>(other)
@@ -21,7 +21,7 @@ module RRSchedule
     end
 
     def to_s
-      "#{@team_a.to_s} vs #{@team_b.to_s} on playing surface #{@playing_surface} at #{@game_time.strftime("%I:%M %p")}\n"
+      "#{@team_a.to_s} vs #{@team_b.to_s} on playing surface #{@playing_surface} at #{@game_time.strftime("%I:%M %p") if @game_time}\n"
     end
   end
 end

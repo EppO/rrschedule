@@ -12,7 +12,7 @@ class TestRrschedule < Test::Unit::TestCase
       assert_equal [], @s.exclude_dates
     end
   end
-
+  
   context "no teams" do
     setup {@s = Schedule.new(:rules => [Rule.new(:wday => 1, :game_times => ["7:00PM"], :playing_surfaces => %w(one two))])}
     should "raise an exception" do
@@ -20,33 +20,33 @@ class TestRrschedule < Test::Unit::TestCase
       assert_equal "You need to specify at least 1 team", exception.message
     end
   end
-
+  
   context "no flight" do
     setup{@s=Schedule.new(:teams => %w(1 2 3 4 5 6), :rules => some_rules)}
     should "be wrapped into a single flight in the normalized array" do
       @s.generate
-      assert_equal [%w(1 2 3 4 5 6)], @s.flights
+      assert_equal %w(1 2 3 4 5 6).size, @s.divisions.first.teams.size
     end
-
+  
     should "not modify the original array" do
       assert_equal %w(1 2 3 4 5 6), @s.teams
     end
   end
-
+  
   context "odd number of teams without flight" do
     setup {@s=Schedule.new(:teams => %w(1 2 3 4 5),:rules => some_rules).generate}
     should "add a dummy competitor in the created flight" do
-      assert_equal 1, @s.flights.size
-      assert_equal 6, @s.flights.first.size
-      assert @s.flights.first.include?(:dummy)
+      assert_equal 1, @s.divisions.size
+      assert_equal 6, @s.divisions.first.teams.size
+      assert Team.include_dummies?(@s.divisions.first.teams)
     end
-
+  
     should "not modify the original array" do
       assert_equal 5, @s.teams.size
       assert !@s.teams.include?(:dummy)
     end
   end
-
+  
   context "extra available resources" do
     setup do
       @s = Schedule.new(
@@ -54,19 +54,19 @@ class TestRrschedule < Test::Unit::TestCase
         :rules => [
           Rule.new(
             :wday => 3,
-            :game_time => ["7:00PM", "9:00PM"],
+            :game_times => ["7:00PM", "9:00PM"],
             :playing_surfaces => %w(one two three four)
           )
         ]
       ).generate
     end
-
+  
     should "have a maximum of (teams/2) games per day" do
       @s.gamedays.each do |gd|
         assert gd.games.size <= @s.teams.size/2
       end
     end
-
+  
     should "not have a team that play more than once on a single day" do
       @s.gamedays.each do |gd|
         day_teams = gd.games.collect{|g| [g.team_a,g.team_b]}.flatten
@@ -75,7 +75,6 @@ class TestRrschedule < Test::Unit::TestCase
       end
     end
   end
-
 
   context "multi flights" do
     setup do
@@ -90,7 +89,7 @@ class TestRrschedule < Test::Unit::TestCase
         :rules => [
           Rule.new(
             :wday => 3,
-            :game_time => ["7:00PM", "9:00PM"],
+            :game_times => ["7:00PM", "9:00PM"],
             :playing_surfaces => ["one","two"]
           )
         ],
@@ -104,26 +103,26 @@ class TestRrschedule < Test::Unit::TestCase
 
     should "generate separate round-robins" do
       @s.generate
-      assert_equal 4, @s.flights.size
-      4.times {|i| assert @s.valid_round_robin?(i) }
+      assert_equal 4, @s.divisions.size
+      @s.divisions.each {|division| assert @s.valid_round_robin?(division) }
     end
 
     should "have a correct total number of games" do
       @s.generate
       assert_equal 112, @s.gamedays.collect{|gd| gd.games.size}.inject{|x,sum| x+sum}
     end
-
+    
     should "not have games for a date that is excluded" do
       @s.generate
       assert !@s.gamedays.collect{|gd| gd.date}.include?(Date.parse("2011/02/02"))
       assert @s.gamedays.collect{|gd| gd.date}.include?(Date.parse("2011/02/09"))
     end
-
+    
     should "respect rules" do
       @s.teams << %w(E1 E2 E3 E4 E5 E6 E7 E8)
       @s.rules << Rule.new(:wday => 4, :game_times => "7:00PM", :playing_surfaces => %w(one two))
       @s.generate
-
+    
       wday = 3
       @s.gamedays.each do |gd|
         assert_equal wday, gd.date.wday
@@ -132,7 +131,7 @@ class TestRrschedule < Test::Unit::TestCase
     end
   end
 
-  ##### RULES #######
+  ####### RULES #######
   should "auto create array for game_time and ps" do
     @s = Schedule.new(
       :teams => %w(a1 a2 a4 a5),
@@ -140,11 +139,11 @@ class TestRrschedule < Test::Unit::TestCase
         Rule.new(:wday => 1, :game_times => "7:00PM", :playing_surfaces => "The Field")
       ]
     ).generate
-
+  
     assert_equal [DateTime.parse("7:00PM")], @s.rules.first.game_times
     assert_equal ["The Field"], @s.rules.first.playing_surfaces
   end
-
+  
   context "no rules specified" do
     setup {@s = Schedule.new(:teams => %w(a1 a2 a4 a5))}
     should "raise an exception" do
@@ -152,7 +151,7 @@ class TestRrschedule < Test::Unit::TestCase
       assert_equal "You need to specify at least 1 rule", exception.message
     end
   end
-
+  
   context "multiple rules on the same weekday" do
     setup do
       @s = Schedule.new
@@ -164,12 +163,12 @@ class TestRrschedule < Test::Unit::TestCase
       @s.start_date = Date.parse("2011/01/27")
       @s.generate
     end
-
+  
     should "keep games on the same day" do
       cur_date = @s.start_date
       @s.gamedays.each_with_index do |gd,i|
         assert_equal cur_date, gd.date
-
+  
         #check all days to make sure that our rules are respected. We don't check
         #the last one because it might not be full (round-robin over)
         if i<@s.gamedays.size-1
@@ -191,15 +190,15 @@ class TestRrschedule < Test::Unit::TestCase
         :teams => [
           %w(A1 A2 A3 A4 A5 A6),
         ],
-
+  
         :rules => [
           Rule.new(
             :wday => 3,
-            :game_time => ["7:00PM", "8:00PM", "9:00PM"],
+            :game_times => ["7:00PM", "8:00PM", "9:00PM"],
             :playing_surfaces => ["one"]
           )
         ],
-
+  
         start_date: Date.parse("2015/05/08"),
         exclude_dates: [ Date.parse("2015/06/17"), Date.parse("2015/06/24"), Date.parse("2015/07/15") ],
         include_dates: [ Date.parse("2015/05/08"), Date.parse("2015/06/12"), Date.parse("2015/06/26"), Date.parse("2015/07/17"), Date.parse("2015/08/03") ],
@@ -226,8 +225,8 @@ class TestRrschedule < Test::Unit::TestCase
 
   def some_rules
     [
-      Rule.new(:wday => 1, :game_time => "7:00PM", :playing_surfaces => "one"),
-      Rule.new(:wday => 1, :game_time => "8:00PM", :playing_surfaces => %w(one two))
+      Rule.new(:wday => 1, :game_times => "7:00PM", :playing_surfaces => "one"),
+      Rule.new(:wday => 1, :game_times => "8:00PM", :playing_surfaces => %w(one two))
     ]
   end
 end

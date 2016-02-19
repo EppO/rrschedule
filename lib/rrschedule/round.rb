@@ -1,31 +1,41 @@
 module RRSchedule
   class Round
-    attr_accessor :round, :cycle, :round_with_cycle, :games, :flight
+    attr_accessor :round, :cycle, :round_with_cycle, :games, :division, :teams
+    attr_reader :round_with_cycle
 
-    def initialize(args={})
-      args = defaults.merge(args)
-      @round = args[:round]
-      @cycle = args[:cycle]
-      @round_with_cycle = args[:round_with_cycle]
-      @flight = args[:flight]
-      @games = args[:games]
+    def initialize(division:, round:, cycle:, teams:, games: [])
+      @round            = round
+      @cycle            = cycle
+      @round_with_cycle = cycle * (teams.size - 1) + round
+      @division         = division
+      @teams            = teams
+      @games            = games
     end
-
-    def defaults
-      {
-        games: []
-      }
+    
+    def process
+      teams = @teams.dup
+      while !teams.empty? do
+        team_a = teams.shift
+        team_b = teams.reverse!.shift
+        teams.reverse!
+        
+        x = (@cycle % 2) == 0 ? [team_a, team_b] : [team_b, team_a]
+        
+        matchup = Game.new(team_a: x[0], team_b: x[1])
+        @games << matchup
+      end
+      @games
     end
 
     def to_s
-      str = "FLIGHT #{@flight.to_s} - Round ##{@round.to_s}\n"
+      str = "Division #{@division.to_s} - Round ##{@round.to_s}\n"
       str += "=====================\n"
 
-      @games.each do |g|
-        if [g.team_a, g.team_b].include?(:dummy)
+      @games.each do |game|
+        if [game.team_a, game.team_b].any? { |team| team.is_dummy? }
           str += bye(g)
         else
-          str += team_a_name + " Vs " + team_b_name + "\n"
+          str += game.team_a.to_s + " Vs " + game.team_b.to_s + "\n"
         end
       end
       str += "\n"
@@ -34,7 +44,7 @@ module RRSchedule
     private
 
     def bye game
-      bye_team = game.team_a == :dummy ? game.team_a.to_s : game.team_b.to_s
+      bye_team = game.team_a.is_dummy? ? game.team_a.to_s : game.team_b.to_s
       "#{bye_team} has a BYE\n"
     end
   end

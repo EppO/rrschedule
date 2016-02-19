@@ -1,5 +1,7 @@
+require "rrschedule/division"
 require "rrschedule/game"
 require "rrschedule/game_day"
 require "rrschedule/round"
 require "rrschedule/rule"
+require "rrschedule/team"
 require "rrschedule/schedule"

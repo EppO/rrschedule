@@ -1,10 +1,10 @@
 module RRSchedule
-  class Gameday
+  class GameDay
     attr_accessor :date, :games
 
-    def initialize(params)
-      self.date = params[:date]
-      self.games = params[:games] || []
+    def initialize(date:, games: [])
+      @date = date
+      @games = games
     end
   end
 end

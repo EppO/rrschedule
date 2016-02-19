@@ -1,6 +1,6 @@
 module RRSchedule
   class Schedule
-    attr_reader :flights, :rounds, :gamedays
+    attr_reader   :divisions, :rounds, :gamedays
     attr_accessor :teams,
                   :rules,
                   :cycles,
@@ -8,127 +8,56 @@ module RRSchedule
                   :end_date,
                   :exclude_dates,
                   :shuffle,
-                  :group_flights,
+                  :group_divisions,
                   :balanced_game_time,
                   :balanced_playing_surface,
                   :max_games
 
-    def initialize(args={})
-      args = defaults.merge(args)
+    def initialize(teams: [], cycles: 1, shuffle: true, max_games: Float::INFINITY, rules: [], 
+                   balance_game_time: true, balance_playing_surface: true,  group_divisions: true, 
+                   start_date: Date.today, end_date: nil, include_dates: [], exclude_dates: [])
       @gamedays                 = []
       @schedule                 = []
-      @rounds                   = []
-      @flights                  = []
-      @teams                    = args[:teams]
-      @cycles                   = args[:cycles]
-      @shuffle                  = args[:shuffle]
-      @balanced_game_time       = args[:balanced_game_time]
-      @balanced_playing_surface = args[:balanced_playing_surface]
-      @exclude_dates            = args[:exclude_dates]
-      @include_dates            = args[:include_dates]
-      @start_date               = args[:start_date]
-      @end_date                 = args[:end_date]
-      @group_flights            = args[:group_flights]
-      @rules                    = args[:rules]
-      @max_games                = args[:max_games]
-    end
-
-    def defaults
-      {
-        teams:                    [],
-        cycles:                   1,
-        shuffle:                  true,
-        balanced_game_time:       true,
-        balanced_playing_surface: true,
-        exclude_dates:            [],
-        include_dates:            [],
-        start_date:               Date.today,
-        end_date:                 nil,
-        group_flights:            true,
-        rules:                    [],
-        max_games:                Float::INFINITY
-      }
-    end
-
-    def process_round(teams, current_cycle)
-      games = []
-      while !teams.empty? do
-        team_a = teams.shift
-        team_b = teams.reverse!.shift
-        teams.reverse!
-
-        x = (current_cycle % 2) == 0 ? [team_a,team_b] : [team_b,team_a]
-
-        matchup = { team_a: x[0], team_b: x[1] }
-        games << matchup
-      end
-      games
+      @rounds                   = {}
+      @divisions                = []
+      @teams                    = teams
+      @cycles                   = cycles
+      @shuffle                  = shuffle
+      @balanced_game_time       = balance_game_time
+      @balanced_playing_surface = balance_playing_surface
+      @exclude_dates            = exclude_dates
+      @include_dates            = include_dates
+      @start_date               = start_date
+      @end_date                 = end_date
+      @group_divisions          = group_divisions
+      @rules                    = rules
+      @max_games                = max_games
     end
 
     def generate(params={})
       raise "You need to specify at least 1 team" if @teams.nil? || @teams.empty?
       raise "You need to specify at least 1 rule" if @rules.nil? || @rules.empty?
 
-      arrange_flights
-      init_stats
+      # A "division" is a group of teams where teams play round-robin against each other
+      # If teams aren't in divisions, we create a single division and put all teams in it
+      division_teams = @teams.first.respond_to?(:to_ary) ? teams : [ @teams ]
+      division_teams.each_with_index do |teams, index|
+        @divisions << Division.new(name: "Division ##{index + 1}", teams: teams)
+      end
 
-      @flights.each_with_index do |flight, flight_id|
-        process_flight(flight, flight_id)
+      @divisions.each do |division|
+        @rounds[division.name] = division.process(cycles: @cycles, max_games: @max_games, shuffle: shuffle)
       end
 
       dispatch_games(@rounds)
       self
     end
 
-    def add_round(flight_id, current_round, current_cycle, games)
-      @rounds[flight_id] ||= []
-      @rounds[flight_id] << Round.new(
-        round: current_round,
-        cycle: current_cycle + 1,
-        round_with_cycle: current_cycle * (teams.size-1) + current_round,
-        flight: flight_id,
-        games: games.collect {|g|
-          Game.new(
-            team_a: g[:team_a],
-            team_b: g[:team_b]
-          )
-        }
-      )
-    end
-
-    def process_flight(flight, flight_id)
-      flight = flight.sort_by { rand } if @shuffle
-
-      current_cycle = 0
-      current_round = 0
-      games_count = 0
-
-      while current_round < flight.size - 1 && current_cycle < @cycles
-        games = process_round(flight.clone, current_cycle)
-        games_count += games.size
-        current_round += 1
-
-        # Team rotation (the first team is fixed)
-        # Insert into the first flight position the flight with the last element removed
-        flight = flight.insert(1, flight.delete_at(flight.size - 1))
-
-        add_round(flight_id, current_round, current_cycle, games)
-
-        # have we completed a full round-robin for the current flight?
-        if current_round == flight.size - 1
-          current_cycle += 1
-          current_round = 0 if current_cycle < @cycles
-        end
-        
-        break if @rounds[flight_id].size == @max_games
-      end
-    end
-
     def total_games
       total = 0
 
-      @flights.each do |teams|
-        total += (teams.size / 2) * (teams.size - 1)
+      @divisions.each do |division|
+        total += (division.teams.size / 2) * (division.teams.size - 1)
       end
       total
     end
@@ -147,48 +76,32 @@ module RRSchedule
       res
     end
 
-    def valid_round_robin?(flight_id=0)
+    def valid_round_robin?(division)
       # each round-robin round should contain n-1 games where n is the number of
       # teams (:dummy included if odd)
 
-      round_games = @cycles * (@flights[flight_id].size - 1)
-      return false if @rounds[flight_id].size != round_games
+      round_games = @cycles * (division.teams.size - 1)
+      return false if @rounds[division.name].size != round_games
 
       # check if each team plays the same number of games against each other
-      @flights[flight_id].each do |t1|
-        @flights[flight_id].reject{|t| t == t1 }.each do |t2|
-          return false unless face_to_face(t1, t2).size == @cycles || [t1, t2].include?(:dummy)
+      division.teams.each do |t1|
+        division.teams.reject{|t| t == t1 }.each do |t2|
+          return false unless t1.games_against(t2).size == @cycles || Team.include_dummies?([t1, t2])
         end
       end
       return true
     end
 
     private
-
-    # A "flight" is a division where teams play round-robin against each other
-    def arrange_flights
-      @flights = Marshal.load(Marshal.dump(@teams)) #deep clone
-
-      # If teams aren't in flights, we create a single flight and put all teams in it
-      @flights = [@flights] unless @flights.first.respond_to?(:to_ary)
-      check_flights
-    end
-
-    def check_flights
-      @flights.each_with_index do |flight, i|
-        raise ":dummy is a reserved team name. Please use something else" if flight.member?(:dummy)
-        raise "at least 2 teams are required" if flight.size < 2
-        raise "teams have to be unique" if flight.uniq.size < flight.size
-        @flights[i] << :dummy if flight.size.odd?
-      end
-    end
-
+    
     def flight_group(rounds)
       flat_games = []
-      while rounds.flatten.size > 0 do
-        @flights.each_with_index do |f, flight_index|
-          r = rounds[flight_index].shift
-          flat_games << r.games if r
+      division_round = Hash.new(0)
+      rounds.values.flatten.each do |round|
+        @divisions.each do |division|
+          round = rounds[division.name][division_round[division.name]]
+          flat_games << round.games if round
+          division_round[division.name] += 1
         end
       end
       flat_games
@@ -196,7 +109,7 @@ module RRSchedule
 
     def check_round_empty(rounds, round_index)
       round_empty = true
-      @flights.each do |i|
+      @divisions.each do |division|
         round_empty = round_empty && (rounds[i][round_index].nil? || rounds[i][round_index].games.empty?)
       end
       round_empty
@@ -217,7 +130,7 @@ module RRSchedule
           end
         end
 
-        if flight_index == @flights.size - 1
+        if flight_index == @divisions.size - 1
           flight_index = 0
           round_index += 1 if check_round_empty(rounds, round_index)
         else
@@ -228,13 +141,11 @@ module RRSchedule
     end
 
     def dispatch_games(rounds)
-      rounds_copy = Marshal.load(Marshal.dump(rounds)) # deep clone
-
-      flat_games = @group_flights ? flight_group(rounds_copy) : flat_flight(rounds_copy)
+      flat_games = @group_divisions ? flight_group(rounds) : flat_flight(rounds)
 
       flat_games.flatten!
       flat_games.each do |g|
-        dispatch_game(g) unless [g.team_a, g.team_b].include?(:dummy)
+        dispatch_game(g) unless Team.include_dummies?([g.team_a, g.team_b])
       end
 
       group_schedule
@@ -245,14 +156,15 @@ module RRSchedule
       s.each do |gamedate, gms|
         games = []
         gms.each do |gm|
-          games << Game.new(
+          game = Game.new(
             team_a: gm[:team_a],
             team_b: gm[:team_b],
             playing_surface: gm[:playing_surface],
             game_time: gm[:game_time]
           )
+          games << game
         end
-        @gamedays << Gameday.new(date: gamedate, games: games)
+        @gamedays << GameDay.new(date: gamedate, games: games)
       end
     end
 
@@ -330,10 +242,10 @@ module RRSchedule
     end
 
     def update_team_stats(game, game_time, playing_surface)
-      @stats[game.team_a][:game_times][game_time] += 1
-      @stats[game.team_a][:playing_surfaces][playing_surface] += 1
-      @stats[game.team_b][:game_times][game_time] += 1
-      @stats[game.team_b][:playing_surfaces][playing_surface] += 1
+      game.team_a.games << game
+      game.team_a.play_at(game_time, playing_surface)
+      game.team_b.games << game
+      game.team_b.play_at(game_time, playing_surface)
     end
 
     def get_best_game_time(game)
@@ -350,10 +262,7 @@ module RRSchedule
     def balance_game_times(game, game_time_left)
       x = {}
       game_time_left.each_key do |game_time|
-        x[game_time] = [
-          @stats[game.team_a][:game_times][game_time] + @stats[game.team_b][:game_times][game_time],
-          rand(1000)
-        ]
+        x[game_time] = [ game.team_a.game_times[game_time] + game.team_b.game_times[game_time], rand(1000) ]
       end
       x.sort_by {|k,v| [v[0],v[1]] }.first[0]
     end
@@ -371,10 +280,7 @@ module RRSchedule
     def balance_playing_surfaces(game, game_time)
       x = {}
       @game_time_ps_avail[game_time].each do |ps|
-        x[ps] = [
-          @stats[game.team_a][:playing_surfaces][ps] + @stats[game.team_b][:playing_surfaces][ps],
-          rand(1000)
-        ]
+        x[ps] = [ game.team_a.playing_surfaces[ps] + game.team_b.playing_surfaces[ps], rand(1000) ]
       end
       x.sort_by{|k,v| [v[0],v[1]] }.first[0]
     end
@@ -388,26 +294,6 @@ module RRSchedule
 
     def update_resource_availability(cur_game_time,cur_ps)
       @game_time_ps_avail[cur_game_time].delete(cur_ps)
-    end
-
-    #return matchups between two teams
-    def face_to_face(team_a,team_b)
-      res = []
-      @gamedays.each do |gd|
-        res << gd.games.select {|g| (g.team_a == team_a && g.team_b == team_b) || (g.team_a == team_b && g.team_b == team_a)}
-      end
-      res.flatten
-    end
-
-    # Count the number of times each team plays on a given playing surface and at what time. That way
-    # we can balance the available playing surfaces/game times among competitors.
-    def init_stats
-      @stats = {}
-      @teams.flatten.each do |t|
-        @stats[t] = {game_times: {}, playing_surfaces: {}}
-        all_game_times.each { |game_time| @stats[t][:game_times][game_time] = 0 }
-        all_playing_surfaces.each { |ps| @stats[t][:playing_surfaces][ps] = 0 }
-      end
     end
 
     # returns an array of all available game times / playing surfaces, all rules included.
