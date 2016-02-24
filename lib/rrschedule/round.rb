@@ -21,14 +21,14 @@ module RRSchedule
         
         x = (@cycle % 2) == 0 ? [team_a, team_b] : [team_b, team_a]
         
-        matchup = Game.new(team_a: x[0], team_b: x[1])
+        matchup = Game.new(division: @division, team_a: x[0], team_b: x[1])
         @games << matchup
       end
       @games
     end
 
     def to_s
-      str = "Division #{@division.to_s} - Round ##{@round.to_s}\n"
+      str = "#{@division.to_s} - Round ##{@round_with_cycle}\n"
       str += "=====================\n"
 
       @games.each do |game|
@@ -43,7 +43,7 @@ module RRSchedule
 
     private
 
-    def bye game
+    def bye(game)
       bye_team = game.team_a.is_dummy? ? game.team_a.to_s : game.team_b.to_s
       "#{bye_team} has a BYE\n"
     end

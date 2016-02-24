@@ -6,5 +6,9 @@ module RRSchedule
       @date = date
       @games = games
     end
+    
+    def self.next_game_day
+      
+    end
   end
 end
