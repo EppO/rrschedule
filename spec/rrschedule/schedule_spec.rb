@@ -2,7 +2,7 @@ require 'spec_helper'
 
 describe RRSchedule::Schedule do
   let(:teams)        { %w(1 2 3 4 5 6) }
-  let(:games_times)  { ["7:00PM"]  }
+  let(:games_times)  { "7:00PM" }
   let(:fields)       { %w(one two) }
   let(:rules)        { [ RRSchedule::Rule.new(wday: 3, game_times: games_times, fields: fields) ] }
   let(:extra_args)   { {} }
@@ -157,6 +157,10 @@ describe RRSchedule::Schedule do
         expect(gameday.games.select { |game| game.game_time == DateTime.parse("9:00PM") && game.field.to_s == "field2" }.size).to eq(1)
         expect(gameday.games.select { |game| game.game_time == DateTime.parse("9:00PM") && game.field.to_s == "field3" }.size).to eq(1)
         current_date += 7
+      end
+      # Check if the last gameday is using one of the resources
+      expect(schedule.gamedays[-1].games.map { |game| { game_time: game.game_time, field: game.field } }).to satisfy do |games| 
+        games.all? { |game| [ "7:00PM", "9:00PM" ].include?(game[:game_time].strftime("%l:%M%p").strip) && [ "field1", "field2", "field3" ].include?(game[:field]) }
       end
     end
   end
